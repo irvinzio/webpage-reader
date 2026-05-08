@@ -6,7 +6,8 @@ let playback = {
   lang: "en-US",
   title: "",
   sourceUrl: "",
-  isStopping: false
+  isStopping: false,
+  version: 0
 };
 
 function splitIntoChunks(text, maxChunkLength = 1400) {
@@ -168,7 +169,8 @@ function stopPlayback(resetToIdle = true) {
     lang: "en-US",
     title: "",
     sourceUrl: "",
-    isStopping: false
+    isStopping: false,
+    version: playback.version + 1
   };
 
   if (resetToIdle) {
@@ -196,6 +198,7 @@ function speakCurrentChunk() {
   }
 
   const utterance = new SpeechSynthesisUtterance(chunk);
+  const utteranceVersion = playback.version;
   utterance.lang = playback.voice?.lang || playback.lang || "en-US";
   utterance.rate = Number(playback.settings?.rate || 1);
   utterance.pitch = Number(playback.settings?.pitch || 1);
@@ -206,6 +209,10 @@ function speakCurrentChunk() {
   }
 
   utterance.onstart = () => {
+    if (utteranceVersion !== playback.version) {
+      return;
+    }
+
     sendStatus({
       status: "speaking",
       progress: Math.round((playback.currentIndex / playback.chunks.length) * 100),
@@ -215,7 +222,7 @@ function speakCurrentChunk() {
   };
 
   utterance.onend = () => {
-    if (playback.isStopping) {
+    if (playback.isStopping || utteranceVersion !== playback.version) {
       return;
     }
 
@@ -236,6 +243,10 @@ function speakCurrentChunk() {
   };
 
   utterance.onerror = (event) => {
+    if (utteranceVersion !== playback.version) {
+      return;
+    }
+
     const failedChunkCount = playback.chunks.length;
     stopPlayback(false);
     sendStatus({
@@ -273,10 +284,46 @@ async function startPlayback(payload) {
     lang: payload.lang || "en-US",
     title: payload.title || "",
     sourceUrl: payload.url || "",
-    isStopping: false
+    isStopping: false,
+    version: playback.version + 1
   };
 
   speakCurrentChunk();
+}
+
+async function updatePlaybackSettings(settings) {
+  playback.settings = {
+    ...(playback.settings || {}),
+    ...(settings || {})
+  };
+  playback.voice = await chooseVoice(playback.settings, playback.lang);
+
+  if (!playback.chunks.length) {
+    return;
+  }
+
+  const wasPaused = speechSynthesis.paused;
+  const wasSpeaking = speechSynthesis.speaking || wasPaused;
+
+  if (!wasSpeaking) {
+    return;
+  }
+
+  playback.version += 1;
+  speechSynthesis.cancel();
+  speakCurrentChunk();
+
+  if (wasPaused) {
+    setTimeout(() => {
+      speechSynthesis.pause();
+      sendStatus({
+        status: "paused",
+        progress: Math.round((playback.currentIndex / Math.max(playback.chunks.length, 1)) * 100),
+        chunkCount: playback.chunks.length,
+        lastError: ""
+      });
+    }, 0);
+  }
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -317,6 +364,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.type === "stop") {
       stopPlayback(true);
+      sendResponse({ ok: true });
+      return;
+    }
+
+    if (message.type === "settingsChanged") {
+      await updatePlaybackSettings(message.settings || {});
       sendResponse({ ok: true });
       return;
     }

@@ -15,6 +15,7 @@ const DEFAULT_STATE = {
   sourceUrl: "",
   readingMode: "",
   detectionMode: "",
+  detectionDetail: "",
   extractedFrom: "",
   progress: 0,
   chunkCount: 0,
@@ -93,6 +94,17 @@ async function sendToOffscreen(message) {
   });
 }
 
+async function sendToExistingOffscreen(message) {
+  if (!(await hasOffscreenDocument())) {
+    return null;
+  }
+
+  return chrome.runtime.sendMessage({
+    target: "offscreen",
+    ...message
+  });
+}
+
 async function stopReader() {
   try {
     await sendToOffscreen({ type: "stop" });
@@ -102,6 +114,17 @@ async function stopReader() {
 
   selectionCache.clear();
   await updateState({ ...DEFAULT_STATE });
+}
+
+async function updateActivePlaybackSettings(settings) {
+  try {
+    await sendToExistingOffscreen({
+      type: "settingsChanged",
+      settings
+    });
+  } catch (error) {
+    // Playback may be idle or the offscreen document may be unavailable.
+  }
 }
 
 function sanitizeText(text) {
@@ -463,9 +486,21 @@ async function detectMainContentWithOllama(payload, settings) {
 
 async function resolveMainContent(payload, settings) {
   try {
-    return await detectMainContentWithOllama(payload, settings);
+    const resolved = await detectMainContentWithOllama(payload, settings);
+    return {
+      ...resolved,
+      detectionDetail: `Using local AI model: ${settings.ollamaModel}.`
+    };
   } catch (error) {
-    return fallbackMainContent(payload.candidates, payload.fallbackText);
+    const fallback = fallbackMainContent(payload.candidates, payload.fallbackText);
+    const detectionDetail = settings.llmEnabled
+      ? `Local AI model was not used: ${error.message || "unknown error"}. Using built-in parser.`
+      : "Local AI model is off. Using built-in parser.";
+
+    return {
+      ...fallback,
+      detectionDetail
+    };
   }
 }
 
@@ -634,6 +669,7 @@ async function readPage(tabId) {
     sourceUrl: payload.url,
     readingMode: "page",
     detectionMode: resolved.detectionMode,
+    detectionDetail: resolved.detectionDetail,
     extractedFrom: resolved.extractedFrom,
     progress: 0,
     chunkCount: 0,
@@ -683,6 +719,7 @@ async function readSelection(tabId) {
     sourceUrl: payload.url || tab?.url || "",
     readingMode: "selection",
     detectionMode: "selection",
+    detectionDetail: "Reading selected text directly. Main-content AI is not used for selections.",
     extractedFrom: payload.extractedFrom,
     progress: 0,
     chunkCount: 0,
@@ -717,6 +754,7 @@ async function readSelectionPayload(tabId, payload) {
     sourceUrl: payload?.url || tab?.url || "",
     readingMode: "selection",
     detectionMode: "selection",
+    detectionDetail: "Reading selected text directly. Main-content AI is not used for selections.",
     extractedFrom: "selection",
     progress: 0,
     chunkCount: 0,
@@ -770,7 +808,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message?.type === "saveSettings") {
-      await chrome.storage.sync.set(message.settings || {});
+      const settings = { ...(message.settings || {}) };
+      await chrome.storage.sync.set(settings);
+      await updateActivePlaybackSettings(await getSettings());
       sendResponse({ ok: true });
       return;
     }

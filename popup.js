@@ -71,6 +71,24 @@ function updateSliderLabels(settings) {
   elements.volumeValue.textContent = `${Math.round(Number(settings.volume) * 100)}%`;
 }
 
+function getDetectionDetail(state) {
+  if (state?.detectionDetail) {
+    return ` ${state.detectionDetail}`;
+  }
+
+  if (state?.readingMode === "page" && state?.detectionMode) {
+    return state.detectionMode === "llm"
+      ? " Using local AI model."
+      : " Using built-in parser.";
+  }
+
+  if (state?.readingMode === "selection") {
+    return " Reading selected text directly.";
+  }
+
+  return "";
+}
+
 function renderState(state) {
   const status = state?.status || "idle";
   elements.statusBadge.textContent = formatStatus(status);
@@ -80,7 +98,7 @@ function renderState(state) {
     const title = state.title ? `"${state.title}"` : "the current page";
     const modeText =
       state.readingMode === "selection" ? "your selected text" : title;
-    elements.statusDetail.textContent = `Preparing ${modeText} for playback.`;
+    elements.statusDetail.textContent = `Preparing ${modeText} for playback.${getDetectionDetail(state)}`;
   } else if (status === "speaking") {
     const title =
       state.readingMode === "selection"
@@ -89,17 +107,14 @@ function renderState(state) {
           ? `"${state.title}"`
           : "the current page";
     const progress = typeof state.progress === "number" ? ` ${state.progress}% complete.` : "";
-    const detectionText =
-      state.readingMode === "page" && state.detectionMode
-        ? ` ${state.detectionMode === "llm" ? "LLM-detected content." : "Fallback parser content."}`
-        : "";
+    const detectionText = getDetectionDetail(state);
     elements.statusDetail.textContent = `Reading ${title}.${progress}${detectionText}`;
   } else if (status === "paused") {
     elements.statusDetail.textContent = "Playback is paused. Resume when you're ready.";
   } else if (status === "error") {
     elements.statusDetail.textContent = state.lastError || "Something went wrong while trying to read this page.";
   } else {
-    elements.statusDetail.textContent = "Open an article or documentation page, then press Read page.";
+    elements.statusDetail.textContent = state?.detectionDetail || "Open an article or documentation page, then press Read page.";
   }
 
   elements.pauseButton.disabled = status !== "speaking";

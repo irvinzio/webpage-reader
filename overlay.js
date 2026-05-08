@@ -156,6 +156,24 @@
     volumeValue.textContent = `${Math.round(Number(settings.volume) * 100)}%`;
   }
 
+  function getDetectionDetail(state) {
+    if (state?.detectionDetail) {
+      return ` ${state.detectionDetail}`;
+    }
+
+    if (state?.readingMode === "page" && state?.detectionMode) {
+      return state.detectionMode === "llm"
+        ? " Using local AI model."
+        : " Using built-in parser.";
+    }
+
+    if (state?.readingMode === "selection") {
+      return " Reading selected text directly.";
+    }
+
+    return "";
+  }
+
   function renderState(state) {
     const status = state?.status || "idle";
     badge.textContent = formatStatus(status);
@@ -167,7 +185,7 @@
         : state.title
           ? `"${state.title}"`
           : "the current page";
-      statusText.textContent = `Preparing ${title} for playback.`;
+      statusText.textContent = `Preparing ${title} for playback.${getDetectionDetail(state)}`;
     } else if (status === "speaking") {
       const title = state.readingMode === "selection"
         ? "your selected text"
@@ -175,17 +193,14 @@
           ? `"${state.title}"`
           : "the current page";
       const progress = typeof state.progress === "number" ? ` ${state.progress}% complete.` : "";
-      const detectionText =
-        state.readingMode === "page" && state.detectionMode
-          ? ` ${state.detectionMode === "llm" ? "LLM-detected content." : "Focused parser content."}`
-          : "";
+      const detectionText = getDetectionDetail(state);
       statusText.textContent = `Reading ${title}.${progress}${detectionText}`;
     } else if (status === "paused") {
       statusText.textContent = "Playback is paused. Resume when you're ready.";
     } else if (status === "error") {
       statusText.textContent = state.lastError || "Unable to start reading.";
     } else {
-      statusText.textContent = "Select text or open an article, then start reading.";
+      statusText.textContent = state?.detectionDetail || "Select text or open an article, then start reading.";
     }
 
     pauseButton.disabled = status !== "speaking";
