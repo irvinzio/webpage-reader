@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Page Reader</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="panel">
+      <header class="hero">
+        <p class="eyebrow">Brave page audio</p>
+        <h1>Page Reader</h1>
+        <p class="subcopy">Detect the main article content on the current page and read it aloud while you do something else.</p>
+      </header>
+
+      <section class="status-card">
+        <div class="status-row">
+          <span class="status-label">Status</span>
+          <span id="statusBadge" class="status-badge idle">Idle</span>
+        </div>
+        <p id="statusDetail" class="status-detail">Open an article or documentation page, then press Read page.</p>
+      </section>
+
+      <section class="controls">
+        <button id="readButton" class="button button-primary">Read page</button>
+        <button id="selectionButton" class="button button-accent">Read selection</button>
+        <div class="secondary-actions">
+          <button id="pauseButton" class="button button-secondary">Pause</button>
+          <button id="resumeButton" class="button button-secondary">Resume</button>
+          <button id="stopButton" class="button button-secondary">Stop</button>
+        </div>
+      </section>
+
+      <section class="settings">
+        <label class="field">
+          <span>Voice</span>
+          <select id="voiceSelect"></select>
+        </label>
+
+        <label class="checkbox-field">
+          <input id="llmEnabledInput" type="checkbox">
+          <span>Use local Ollama to detect the main content</span>
+        </label>
+
+        <label class="field">
+          <span>Ollama model</span>
+          <input id="ollamaModelInput" type="text" value="gemma3" placeholder="gemma3">
+        </label>
+
+        <label class="field">
+          <span>Ollama endpoint</span>
+          <input id="ollamaEndpointInput" type="text" value="http://127.0.0.1:11434/api/generate">
+        </label>
+
+        <label class="field">
+          <div class="field-label">
+            <span>Speed</span>
+            <span id="rateValue">1.0x</span>
+          </div>
+          <input id="rateInput" type="range" min="0.7" max="1.3" step="0.05" value="1">
+        </label>
+
+        <label class="field">
+          <div class="field-label">
+            <span>Pitch</span>
+            <span id="pitchValue">1.0</span>
+          </div>
+          <input id="pitchInput" type="range" min="0.8" max="1.2" step="0.05" value="1">
+        </label>
+
+        <label class="field">
+          <div class="field-label">
+            <span>Volume</span>
+            <span id="volumeValue">100%</span>
+          </div>
+          <input id="volumeInput" type="range" min="0.2" max="1" step="0.05" value="1">
+        </label>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

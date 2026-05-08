@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Page Reader",
+  "description": "Reads the main content of the current page aloud with a natural system voice.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "109",
+  "permissions": [
+    "activeTab",
+    "offscreen",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js",
+        "overlay.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Page Reader",
+    "default_popup": "popup.html"
+  }
+}

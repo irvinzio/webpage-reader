@@ -1,0 +1,237 @@
+#page-reader-root {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483647;
+  font-family: "Segoe UI", "Noto Sans", sans-serif;
+  color: #182320;
+}
+
+#page-reader-root *,
+#page-reader-root *::before,
+#page-reader-root *::after {
+  box-sizing: border-box;
+}
+
+.page-reader-launcher {
+  width: 56px;
+  height: 56px;
+  border: 0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #0d8f62, #076a48);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 18px 40px rgba(7, 106, 72, 0.28);
+}
+
+.page-reader-panel {
+  width: 320px;
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid rgba(24, 35, 32, 0.12);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.92), transparent 35%),
+    linear-gradient(145deg, #fffaf2, #f3efe5 60%, #edf7f0);
+  box-shadow: 0 24px 60px rgba(32, 42, 35, 0.22);
+}
+
+.page-reader-panel[hidden] {
+  display: none;
+}
+
+.page-reader-topbar {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.page-reader-title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  line-height: 1.05;
+}
+
+.page-reader-subtitle {
+  margin: 6px 0 0;
+  color: #5c6b66;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.page-reader-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(24, 35, 32, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.page-reader-status {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(24, 35, 32, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.page-reader-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.page-reader-status-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.page-reader-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.page-reader-badge.idle {
+  background: rgba(24, 35, 32, 0.08);
+  color: #182320;
+}
+
+.page-reader-badge.starting,
+.page-reader-badge.speaking {
+  background: rgba(13, 143, 98, 0.14);
+  color: #076a48;
+}
+
+.page-reader-badge.paused {
+  background: rgba(180, 129, 27, 0.15);
+  color: #8b6200;
+}
+
+.page-reader-badge.error {
+  background: rgba(196, 58, 58, 0.14);
+  color: #9f2020;
+}
+
+.page-reader-status-text {
+  margin: 10px 0 0;
+  color: #5c6b66;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.page-reader-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.page-reader-secondary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.page-reader-button {
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 13px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.page-reader-button.primary {
+  background: linear-gradient(135deg, #0d8f62, #076a48);
+  color: #fff;
+}
+
+.page-reader-button.selection {
+  background: rgba(255, 250, 242, 0.95);
+  border: 1px solid rgba(13, 143, 98, 0.24);
+  color: #076a48;
+}
+
+.page-reader-button.secondary {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(24, 35, 32, 0.12);
+  color: #182320;
+}
+
+.page-reader-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.page-reader-fields {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.page-reader-field {
+  display: grid;
+  gap: 6px;
+}
+
+.page-reader-field label,
+.page-reader-slider-row span:first-child,
+.page-reader-toggle-text {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.page-reader-field select,
+.page-reader-field input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(24, 35, 32, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #182320;
+  font: inherit;
+}
+
+.page-reader-slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.page-reader-field input[type="range"] {
+  width: 100%;
+}
+
+.page-reader-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(24, 35, 32, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.page-reader-toggle input {
+  width: 16px;
+  height: 16px;
+}
