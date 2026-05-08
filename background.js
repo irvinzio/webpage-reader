@@ -58,6 +58,10 @@ async function getSettings() {
   return chrome.storage.sync.get(DEFAULT_SETTINGS);
 }
 
+function isReadableTabUrl(url) {
+  return /^https?:\/\//i.test(url || "");
+}
+
 async function hasOffscreenDocument() {
   if (chrome.offscreen.hasDocument) {
     return chrome.offscreen.hasDocument();
@@ -461,6 +465,32 @@ async function getLiveSelection(tabId) {
   }
 }
 
+async function ensureSelectionContentScript(tabId, tabUrl) {
+  if (!isReadableTabUrl(tabUrl)) {
+    return false;
+  }
+
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: "getLiveSelection" });
+    return true;
+  } catch (error) {
+    try {
+      await chrome.scripting.insertCSS({
+        target: { tabId },
+        files: ["content.css"]
+      });
+    } catch (cssError) {
+      // CSS may already be injected; the content script is the important part.
+    }
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["content.js", "overlay.js"]
+    });
+    return true;
+  }
+}
+
 function getCachedSelection(tabId, currentUrl) {
   const cached = selectionCache.get(tabId);
   if (!cached?.text) {
@@ -475,6 +505,12 @@ function getCachedSelection(tabId, currentUrl) {
 }
 
 async function readPage(tabId) {
+  const tab = await chrome.tabs.get(tabId);
+
+  if (!isReadableTabUrl(tab?.url)) {
+    throw new Error("Open an http or https page first. Browser pages like brave://extensions cannot be read.");
+  }
+
   const [result] = await chrome.scripting.executeScript({
     target: { tabId },
     func: extractPageCandidates
@@ -520,12 +556,14 @@ async function readPage(tabId) {
 
 async function readSelection(tabId) {
   const tab = await chrome.tabs.get(tabId);
+  await ensureSelectionContentScript(tabId, tab?.url);
+
   const liveSelection = await getLiveSelection(tabId);
   const cachedSelection = getCachedSelection(tabId, tab?.url);
   const payload = liveSelection?.ok ? liveSelection : cachedSelection;
 
   if (!payload?.text) {
-    throw new Error(payload?.error || "Unable to read the selected text.");
+    throw new Error(payload?.error || "Select text on the page first. If this tab was already open, refresh it once and try again.");
   }
 
   const settings = await getSettings();

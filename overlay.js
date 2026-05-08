@@ -288,11 +288,16 @@
   }
 
   async function handleReadPage() {
-    await sendMessage({
+    const response = await sendMessage({
       type: "readCurrentTabFromOverlay"
-    }).catch(async () => {
-      await sendMessage({ type: "readCurrentTab" });
     });
+
+    if (!response?.ok) {
+      renderState({
+        status: "error",
+        lastError: response?.error || "Unable to read this page."
+      });
+    }
   }
 
   async function handleReadSelection() {

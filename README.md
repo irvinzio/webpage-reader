@@ -13,7 +13,7 @@ This is a Manifest V3 browser extension that:
 1. Open `brave://extensions`
 2. Enable **Developer mode**
 3. Click **Load unpacked**
-4. Select this folder: `C:\projects\extensions`
+4. Select this folder: `C:\projects\extensions\webpage-reader`
 
 ## Optional local LLM setup
 

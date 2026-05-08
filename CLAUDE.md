@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 No build step. Plain JavaScript, no npm, no bundler.
 
-To load: open `brave://extensions`, enable Developer mode, click **Load unpacked**, select `C:\projects\extensions`.
+To load: open `brave://extensions`, enable Developer mode, click **Load unpacked**, select `C:\projects\extensions\webpage-reader`.
 
 To reload after edits: click the reload icon on the extension card at `brave://extensions`. For content/overlay script changes you also need to refresh the target page.
 
