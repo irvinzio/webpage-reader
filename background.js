@@ -93,6 +93,17 @@ async function sendToOffscreen(message) {
   });
 }
 
+async function stopReader() {
+  try {
+    await sendToOffscreen({ type: "stop" });
+  } catch (error) {
+    // If the offscreen document is unavailable, still reset extension state.
+  }
+
+  selectionCache.clear();
+  await updateState({ ...DEFAULT_STATE });
+}
+
 function sanitizeText(text) {
   return (text || "")
     .replace(/\u00a0/g, " ")
@@ -577,6 +588,24 @@ function getCachedSelection(tabId, currentUrl) {
   return cached;
 }
 
+function rememberSelection(tabId, payload) {
+  if (typeof tabId !== "number" || !payload?.text) {
+    return;
+  }
+
+  selectionCache.set(tabId, {
+    extractedFrom: "selection",
+    ...payload,
+    updatedAt: payload.updatedAt || Date.now()
+  });
+}
+
+function clearTabSelection(tabId) {
+  if (typeof tabId === "number") {
+    selectionCache.delete(tabId);
+  }
+}
+
 async function readPage(tabId) {
   const tab = await chrome.tabs.get(tabId);
 
@@ -631,13 +660,13 @@ async function readSelection(tabId) {
   const tab = await chrome.tabs.get(tabId);
   await ensureSelectionContentScript(tabId, tab?.url);
 
+  const cachedSelection = getCachedSelection(tabId, tab?.url);
   const liveSelection = await getLiveSelection(tabId);
   const injectedSelection = await getInjectedSelection(tabId);
-  const cachedSelection = getCachedSelection(tabId, tab?.url);
-  const payload = liveSelection?.ok ? liveSelection : injectedSelection?.ok ? injectedSelection : cachedSelection;
+  const payload = cachedSelection || (liveSelection?.ok ? liveSelection : null) || (injectedSelection?.ok ? injectedSelection : null);
 
   if (!payload?.text) {
-    throw new Error(payload?.error || "Select text on the page first. If this tab was already open, refresh it once and try again.");
+    throw new Error(payload?.error || "Select text on the page first, then open the reader and press Read selection.");
   }
 
   const settings = await getSettings();
@@ -709,9 +738,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === "selectionChanged") {
       if (typeof sender.tab?.id === "number" && message.payload) {
         if (message.payload.text) {
-          selectionCache.set(sender.tab.id, message.payload);
+          rememberSelection(sender.tab.id, message.payload);
         } else {
-          selectionCache.delete(sender.tab.id);
+          clearTabSelection(sender.tab.id);
         }
       }
 
@@ -849,8 +878,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message?.type === "stop") {
-      await sendToOffscreen({ type: "stop" });
-      await updateState({ ...DEFAULT_STATE });
+      await stopReader();
       sendResponse({ ok: true });
       return;
     }
@@ -862,16 +890,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
-  selectionCache.delete(tabId);
+  clearTabSelection(tabId);
   const state = await loadState();
   if (state.activeTabId === tabId && state.status !== "idle") {
-    await sendToOffscreen({ type: "stop" });
-    await updateState({ ...DEFAULT_STATE });
+    await stopReader();
   }
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status === "loading" || changeInfo.url) {
-    selectionCache.delete(tabId);
+    clearTabSelection(tabId);
   }
 });

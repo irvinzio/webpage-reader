@@ -104,8 +104,7 @@ function renderState(state) {
 
   elements.pauseButton.disabled = status !== "speaking";
   elements.resumeButton.disabled = status !== "paused";
-  elements.stopButton.disabled =
-    status !== "starting" && status !== "speaking" && status !== "paused";
+  elements.stopButton.disabled = false;
 }
 
 async function populateVoices(selectedVoiceName) {

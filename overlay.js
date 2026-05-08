@@ -190,7 +190,7 @@
 
     pauseButton.disabled = status !== "speaking";
     resumeButton.disabled = status !== "paused";
-    stopButton.disabled = !["starting", "speaking", "paused"].includes(status);
+    stopButton.disabled = false;
   }
 
   async function sendMessage(message) {
