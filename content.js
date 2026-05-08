@@ -65,21 +65,7 @@ function pushSelectionState() {
   }
 
   if (!nextText) {
-    if (document.hasFocus() && lastSentText) {
-      chrome.runtime.sendMessage({
-        type: "selectionCleared",
-        payload: {
-          url: window.location.href,
-          updatedAt: Date.now()
-        }
-      }).then(() => {
-        lastSentText = "";
-        lastStableSelection = null;
-      }).catch(() => {
-        lastSentText = "";
-      });
-    }
-
+    lastSentText = "";
     return;
   }
 

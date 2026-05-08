@@ -23,6 +23,7 @@ const DEFAULT_STATE = {
 
 let readerState = { ...DEFAULT_STATE };
 const selectionCache = new Map();
+const SELECTION_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
 
 chrome.runtime.onInstalled.addListener(async () => {
   const currentSettings = await chrome.storage.sync.get(DEFAULT_SETTINGS);
@@ -465,6 +466,68 @@ async function getLiveSelection(tabId) {
   }
 }
 
+async function getInjectedSelection(tabId) {
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: () => {
+        function normalizeSelectionText(value) {
+          return (value || "")
+            .replace(/\u00a0/g, " ")
+            .replace(/[ \t]+\n/g, "\n")
+            .replace(/\n{3,}/g, "\n\n")
+            .replace(/[ \t]{2,}/g, " ")
+            .trim();
+        }
+
+        function getInputSelectionText(element) {
+          if (!element) {
+            return "";
+          }
+
+          const isTextInput =
+            element.tagName === "TEXTAREA" ||
+            (element.tagName === "INPUT" &&
+              /^(email|number|password|search|tel|text|url)$/i.test(element.type || "text"));
+
+          if (
+            !isTextInput ||
+            typeof element.selectionStart !== "number" ||
+            typeof element.selectionEnd !== "number" ||
+            element.selectionEnd <= element.selectionStart
+          ) {
+            return "";
+          }
+
+          return normalizeSelectionText(
+            (element.value || "").slice(element.selectionStart, element.selectionEnd)
+          );
+        }
+
+        const inputSelection = getInputSelectionText(document.activeElement);
+        const windowSelection = normalizeSelectionText(
+          window.getSelection ? window.getSelection().toString() : ""
+        );
+        const text = inputSelection || windowSelection;
+
+        return {
+          ok: Boolean(text),
+          text,
+          title: normalizeSelectionText(document.title),
+          lang: normalizeSelectionText(document.documentElement.lang || navigator.language || "en-US"),
+          url: window.location.href,
+          extractedFrom: "selection",
+          updatedAt: Date.now()
+        };
+      }
+    });
+
+    return results.map((result) => result.result).find((payload) => payload?.text) || null;
+  } catch (error) {
+    return null;
+  }
+}
+
 async function ensureSelectionContentScript(tabId, tabUrl) {
   if (!isReadableTabUrl(tabUrl)) {
     return false;
@@ -484,8 +547,13 @@ async function ensureSelectionContentScript(tabId, tabUrl) {
     }
 
     await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      files: ["content.js"]
+    });
+
+    await chrome.scripting.executeScript({
       target: { tabId },
-      files: ["content.js", "overlay.js"]
+      files: ["overlay.js"]
     });
     return true;
   }
@@ -498,6 +566,11 @@ function getCachedSelection(tabId, currentUrl) {
   }
 
   if (currentUrl && cached.url && cached.url !== currentUrl) {
+    return null;
+  }
+
+  if (cached.updatedAt && Date.now() - cached.updatedAt > SELECTION_CACHE_MAX_AGE_MS) {
+    selectionCache.delete(tabId);
     return null;
   }
 
@@ -559,8 +632,9 @@ async function readSelection(tabId) {
   await ensureSelectionContentScript(tabId, tab?.url);
 
   const liveSelection = await getLiveSelection(tabId);
+  const injectedSelection = await getInjectedSelection(tabId);
   const cachedSelection = getCachedSelection(tabId, tab?.url);
-  const payload = liveSelection?.ok ? liveSelection : cachedSelection;
+  const payload = liveSelection?.ok ? liveSelection : injectedSelection?.ok ? injectedSelection : cachedSelection;
 
   if (!payload?.text) {
     throw new Error(payload?.error || "Select text on the page first. If this tab was already open, refresh it once and try again.");
@@ -633,7 +707,7 @@ async function readSelectionPayload(tabId, payload) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     if (message?.type === "selectionChanged") {
-      if (sender.tab?.id && message.payload) {
+      if (typeof sender.tab?.id === "number" && message.payload) {
         if (message.payload.text) {
           selectionCache.set(sender.tab.id, message.payload);
         } else {
@@ -646,10 +720,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message?.type === "selectionCleared") {
-      if (sender.tab?.id) {
-        selectionCache.delete(sender.tab.id);
-      }
-
+      // Opening the popup can clear the live page selection before the popup
+      // handler asks for it, so keep the last non-empty selection until it ages
+      // out or the tab navigates.
       sendResponse({ ok: true });
       return;
     }
